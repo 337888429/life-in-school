@@ -2,46 +2,64 @@
 # @Author: Nessaj
 # @Date:   2018-03-18 22:47:47
 # @Last Modified by:   Nessaj
-# @Last Modified time: 2018-03-22 16:36:58
-from matplotlib.pyplot import *
-from pandas import *
-import mysql
+# @Last Modified time: 2018-05-22 23:38:29
+from matplotlib import pyplot as plt
+from pandas import DataFrame
+import pandas as pd
 import sqlalchemy
-import numpy
+import numpy as np
 
-# engine=sqlalchemy.create_engine('jdbc:mysql://localhost:3306/bra.sql?user=root&password=123456')
+
 engine=sqlalchemy.create_engine("mysql+pymysql://root:123456@localhost:3306/bra")
-rcParams['font.sans-serif']=['SimHei']
+plt.rcParams['font.sans-serif']=['SimHei']
 
-sales = read_sql('select source,size1,size2 from t_sales',engine)
-size1size2Count = sales.groupby(['size1','size2'])['size1'].count()
-# print(type(size1size2Count))
-size1size2Total = size1size2Count.sum()
-print(size1size2Total)
-size1size2 = size1size2Count.to_frame(name='销量')
-n = 500
-# 过滤出销量小等于500的组，并统计这些组的总销量，将统计结果放到DataFrame中
-others = DataFrame([size1size2[size1size2['销量'] <=
-     n].sum()],index=MultiIndex(levels=[[''],['其他']],labels=[[0],[0]]))
+sales = pd.read_sql('select size1,size2 from t_sales',engine)
 
-# 将“其他”销量放到记录集的最后
-size1size2 = size1size2[size1size2['销量']>n].append(others)
-# size1size2 = size1size2.append(others)
-print(type(size1size2))
-# print(size1size2)
 
-size1size2 = size1size2.sort_values(['销量'],ascending=[0])
-size1size2.insert(0,'比例',100 * size1size2Count / size1size2Total)
+def bra1():
+    size1size2=sales.groupby(['size1','size2'])['size1'].count()
+    size1size2=size1size2.to_frame(name='count')
+    others = DataFrame([size1size2[size1size2['count'] <=
+         200].sum()],index=pd.MultiIndex(levels=[[''],['other']],labels=[[0],[0]]))
+    final=pd.concat([size1size2[(size1size2['count']>200)],others])
 
-print(size1size2)
-labels = size1size2.index.tolist()
-newLabels = []
-# 生成饼图外侧显示的每一部分的表示（如75B、80A等）
-for label in labels:
-    newLabels.append(label[1] + label[0])
-pie(size1size2['销量'],labels=newLabels,autopct='%.2f%%')
-legend()
-axis('equal')
-title('罩杯+上胸围销售比例')
-tight_layout()
-show()
+    most10=final.sort_values(['count'])[-10:]
+    labels=most10.index.tolist()
+    mylabels=[]
+    for label in labels:
+        mylabels.append(label[1]+label[0])
+    explode=[0,0,0,0,0,0,0,0,0,0.1]
+    plt.figure(figsize=(10,13))
+    ax1=plt.subplot()
+    patches,l_text,p_text=ax1.pie(most10,labels=mylabels,autopct='%.1f%%',shadow=True,explode=explode,startangle=270,labeldistance=1.1)
+    for t in l_text:
+        t.set_size(20)
+    for t in p_text:
+        t.set_size(20)
+    ax1.set_title('胸围罩杯分布',fontsize=20)
+    plt.axis('equal')
+    plt.tight_layout()
+    legend = plt.legend( loc=(0.8,0.5),title='legend', shadow=True,fontsize=20)
+    # legend.get_frame().set_facecolor('#00FFCC')
+    legend.get_title().set_fontsize(fontsize = 20)
+    plt.show()
+
+def bra2():
+    type=sales.groupby('size1')['size2'].count()
+    type=type.to_frame(name='count')
+    other=DataFrame([type[type['count']<500].sum()],index=['other'])
+    finaltype=type[type['count']>=500].append(other)
+    ran=finaltype.ix[['A','B','C','other','D','E']]
+    plt.figure(figsize=(10,10))
+    ax2=plt.subplot()
+    explode=[0,0.1,0,0,0,0]
+    f,l_text,p_text=ax2.pie(ran,shadow=True,startangle=90,autopct='%.1f%%',labels=ran.index,labeldistance=1.04,explode=explode)
+    for t in p_text:
+        t.set_size(20)
+    for t in l_text:
+        t.set_size(20)
+    plt.axis('equal')
+    ax2.set_title('罩杯分布',fontsize=20)
+    plt.show()
+# bra1()
+# bra2()
